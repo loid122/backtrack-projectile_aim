@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Projectile Challenge</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        
+        .game-screen {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        
+        #gameCanvas {
+            width: 100%;
+            height: 400px;
+            background-color: #e0f7fa;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        
+        .control-panel {
+            width: 100%;
+            display: flex;
+            gap: 20px;
+        }
+        
+        .game-controls {
+            flex: 1;
+            padding: 15px;
+            background-color: #f1f8e9;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        
+        .code-editor {
+            flex: 2;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        textarea {
+            width: 100%;
+            height: 200px;
+            font-family: monospace;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            resize: vertical;
+        }
+        
+        button {
+            margin-top: 10px;
+            padding: 10px 15px;
+            background-color: #4caf50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        button:hover {
+            background-color: #388e3c;
+        }
+        
+        .level-info {
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: #e8f5e9;
+            border-radius: 4px;
+            border: 1px solid #c8e6c9;
+        }
+        
+        .target {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background-color: red;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+        }
+        
+        .ground {
+            position: absolute;
+            background-color: #795548;
+            height: 5px;
+        }
+        
+        .missed-point {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background-color: orange;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+        }
+        
+        .projectile-path {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background-color: blue;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Projectile Challenge</h1>
+        
+        <div class="game-screen">
+            <div id="gameCanvas"></div>
+            
+            <div class="control-panel">
+                <div class="game-controls">
+                    <div class="level-info">
+                        <h3 id="levelTitle">Level 1</h3>
+                        <p>Distance to target: <span id="targetDistance">0</span> m</p>
+                        <p>Target height: <span id="targetHeight">0</span> m</p>
+                        <p>Processed distance: <span id="processedDistance">-</span> m</p>
+                        <p id="missedInfo" style="display: none;">Missed by: <span id="missedDistance">0</span> m</p>
+                    </div>
+                </div>
+                
+                <div class="code-editor">
+                    <h3>Enter Your Code:</h3>
+                    <textarea id="codeInput" placeholder=
+                    "// Enter initial speed (u) and cos(theta)
+                    // Example:
+                    // u = 50;  // initial speed
+                    // costheta = 0.8;  // cosine of the launch angle
+                    // inverseu = u;  // Your inverse function to account for hidden transformations
+                    // inversecostheta = costheta;  // Your inverse function to account for hidden transformations"></textarea>
+
+                    <script>
+                        // Define placeholders
+                        const basicPlaceholder = `// Enter initial speed (u) and cos(theta)
+                    // Example:
+                    // u = 50;  // initial speed
+                    // costheta = 0.8;  // cosine of the launch angle
+                    // inverseu = u;  // Your inverse function
+                    // inversecostheta = costheta;  // Your inverse function`;
+                    
+                        const advancedPlaceholder = `// Advanced Level Input
+                    // Example:
+                    // ux = 10;  // Adjusted speed
+                    // uy = 45;  // Advanced cosine adjustment
+                    // inverseux = ux;  // Your inverse function to account for hidden transformations
+                    // inverseuy = uy;// Your inverse function to account for hidden transformations `;
+                    
+                        // Function to update placeholder based on level
+                        function updatePlaceholder(currentLevel) {
+                            const textarea = document.getElementById('codeInput');
+                            textarea.placeholder = currentLevel > 13 ? advancedPlaceholder : basicPlaceholder;
+                        }
+                    
+                        // Example usage
+                        
+                    </script>
+
+                    <button id="submitButton">Launch Projectile</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Levels configuration
+        const levels = [
+            // L1 (Hidden transformations)
+            { distance: 111, targetHeight: 0, hiddenTransform: (speed, costheta) => [speed - 7, costheta], tolerance: 0.5 },
+            { distance: 194, targetHeight: 30, hiddenTransform: (speed, costheta) => [speed + 23, costheta], tolerance: 0.5 },
+            { distance: 116, targetHeight: 0, hiddenTransform: (speed, costheta) => [speed, costheta - 0.1], tolerance: 0.5 },
+            { distance: 142, targetHeight: 40, hiddenTransform: (speed, costheta) => [speed, costheta + 0.05], tolerance: 0.5 },
+            
+            // L2 (Speed/Angle span drift)
+            { distance: 136, targetHeight: 0, hiddenTransform: (speed, costheta) => [speed * 1.25, costheta], tolerance: 0.5 },
+            { distance: 154, targetHeight: 0, hiddenTransform: (speed, costheta) => [speed, costheta * 0.5], tolerance: 0.5 },
+            { distance: 152, targetHeight: 60, hiddenTransform: (speed, costheta) => [speed * 0.8, costheta], tolerance: 0.5 },
+            { distance: 179, targetHeight: 25, hiddenTransform: (speed, costheta) => [speed, costheta * 0.75], tolerance: 0.5 },
+
+            //speed with zonal drift
+            { distance: 150, targetHeight: 45,costheta: 0.64 ,hiddenTransform: (speed, costheta) => [2*(speed) + 3 , costheta], tolerance: 0.5 },
+            { distance: 150, targetHeight: 45,costheta: 0.64 ,hiddenTransform: (speed, costheta) => [3*(speed) - 2 , costheta], tolerance: 0.5 },
+            { distance: 180, targetHeight: 65,costheta: 0.57 ,hiddenTransform: (speed, costheta) => [1.5*(speed) + 3 , costheta], tolerance: 0.5 },
+            { distance: 180, targetHeight: 65,costheta: 0.57 ,hiddenTransform: (speed, costheta) => [3*(speed) - 1.5 , costheta], tolerance: 0.5 },
+
+             // dead Zone
+            { distance: 117.6, targetHeight: 0,obstaclex: 58.8,obstacleymin: 0,obstacleymax: 39, hiddenTransform: (speed, costheta) => {
+            let speed_taken = (speed > 30 && speed < 40) ? 30 : speed;
+            let speed_taken2 = (speed === 35) ? speed_taken + 5 : speed_taken;
+            return [speed_taken2, costheta];
+            }, tolerance: 0.5 },
+
+            { distance: 185.856, targetHeight: 0,obstaclex: 92.928,obstacleymin: 0,obstacleymax: 34.5, hiddenTransform: (speed, costheta) => {
+            let speed_taken = (speed > 40 && speed < 45) ? 50 : speed;
+            let speed_taken2 = (speed === 44) ? speed_taken + 4 : speed_taken;
+            return [speed_taken2, costheta];
+            }, tolerance: 0.5 },
+            
+            // Ux,Uy 
+            { distance: 137, targetHeight: 15, hiddenTransform: (speedX, speedY) => [speedX - 14, speedY], tolerance: 0.5 },
+            { distance: 182, targetHeight: 55, hiddenTransform: (speedX, speedY) => [speedX , speedY + 8], tolerance: 0.5 },
+            { distance: 169, targetHeight: 65, hiddenTransform: (speedX, speedY) => [speedX * 1.75, speedY], tolerance: 0.5 },
+            { distance: 107, targetHeight: 35, hiddenTransform: (speedX, speedY) => [speedX , speedY *0.9], tolerance: 0.5 }
+        ];
+
+        // Game state
+        let currentLevel = 12;
+        let processedDistance = null;
+        let speedX = null;
+        let speedY = null;
+        let missedPoint = null;
+        let animationId = null;
+        let projectilePath = [];
+
+        // DOM Elements
+        const gameCanvas = document.getElementById('gameCanvas');
+        const levelTitle = document.getElementById('levelTitle');
+        const targetDistanceElement = document.getElementById('targetDistance');
+        const targetHeightElement = document.getElementById('targetHeight');
+        const processedDistanceElement = document.getElementById('processedDistance');
+        const missedInfoElement = document.getElementById('missedInfo');
+        const missedDistanceElement = document.getElementById('missedDistance');
+        const codeInput = document.getElementById('codeInput');
+        const submitButton = document.getElementById('submitButton');
+
+        // Initialize game
+        function initGame() {
+            updateLevelInfo();
+            drawCanvas();
+        }
+
+        // Update level information
+        function updateLevelInfo() {
+            levelTitle.textContent = `Level ${currentLevel + 1}`;
+            targetDistanceElement.textContent = levels[currentLevel].distance;
+            targetHeightElement.textContent = levels[currentLevel].targetHeight;
+            processedDistanceElement.textContent = processedDistance !== null ? processedDistance : '-';
+            updatePlaceholder(currentLevel);
+            if (missedPoint !== null) {
+                missedInfoElement.style.display = 'block';
+                missedDistanceElement.textContent = Math.abs(processedDistance - levels[currentLevel].distance).toFixed(2);
+            } else {
+                missedInfoElement.style.display = 'none';
+            }
+        }
+
+        // Draw the game canvas
+        function drawCanvas() {
+            // Clear previous content
+            gameCanvas.innerHTML = '';
+            gameCanvas.style.position = 'relative';
+            
+            const canvasWidth = gameCanvas.offsetWidth;
+            const canvasHeight = gameCanvas.offsetHeight;
+            
+            // Scale factors to convert real-world units to pixels
+            const scaleX = canvasWidth / (levels[currentLevel].distance * 1.5);
+            const scaleY = canvasHeight / 150;
+            
+            // Draw ground
+            const ground = document.createElement('div');
+            ground.className = 'ground';
+            ground.style.width = `${canvasWidth}px`;
+            ground.style.bottom = '0';
+            ground.style.left = '0';
+            gameCanvas.appendChild(ground);
+            
+            // Draw target
+            const target = document.createElement('div');
+            target.className = 'target';
+            target.style.left = `${levels[currentLevel].distance * scaleX}px`;
+            target.style.bottom = `${levels[currentLevel].targetHeight * scaleY}px`;
+            gameCanvas.appendChild(target);
+            
+            // Draw projectile path if available
+            if (projectilePath.length > 0) {
+                projectilePath.forEach(point => {
+                    const pathPoint = document.createElement('div');
+                    pathPoint.className = 'projectile-path';
+                    pathPoint.style.left = `${point.x * scaleX}px`;
+                    pathPoint.style.bottom = `${point.y * scaleY}px`;
+                    gameCanvas.appendChild(pathPoint);
+                });
+            }
+            
+            // Draw missed point if available
+            if (missedPoint !== null) {
+                const missedMarker = document.createElement('div');
+                missedMarker.className = 'missed-point';
+                missedMarker.style.left = `${missedPoint.x * scaleX}px`;
+                missedMarker.style.bottom = `${missedPoint.y * scaleY}px`;
+                gameCanvas.appendChild(missedMarker);
+            }
+        }
+
+        // Handle code submission
+        
+        function handleSubmit() {
+    try {
+        if (currentLevel < 14) {
+            // Handle levels 1-13
+            let u, costheta, inverseu, inversecostheta;
+            const userCode = codeInput.value;
+            const userFunction = new Function(`
+                let u, costheta, inverseu, inversecostheta;
+                ${userCode}
+                return { u, costheta, inverseu, inversecostheta };
+            `);
+
+            const result = userFunction();
+            u = result.u;
+            costheta = result.costheta;
+            inverseu = result.inverseu;
+            inversecostheta = result.inversecostheta;
+
+            if (u === undefined || costheta === undefined || inverseu === undefined || inversecostheta === undefined) {
+                throw new Error("Missing variables. Make sure to define u, costheta, inverseu, and inversecostheta.");
+            }
+
+            // Validate costheta to be between 0 and 1
+            if (costheta <= 0 || costheta >= 1) {
+                throw new Error("costheta must be between 0 and 1 (0 < costheta < 1)");
+            }
+
+            // Apply hidden transformation from the level
+            const [transformedSpeed, transformedcostheta] = levels[currentLevel].hiddenTransform(inverseu, inversecostheta);
+
+            // Calculate new velocity components after transformation
+            speedX = transformedSpeed * transformedcostheta;
+            speedY = transformedSpeed * Math.sqrt(1 - transformedcostheta * transformedcostheta);
+        } else if (currentLevel < 18) {
+            // Handle levels 14-17
+            let ux, uy, inverseux, inverseuy;
+            const userCode = codeInput.value;
+            const userFunction = new Function(`
+                let ux, uy, inverseux, inverseuy;
+                ${userCode}
+                return { ux, uy, inverseux, inverseuy };
+            `);
+
+            const result = userFunction();
+            ux = result.ux;
+            uy = result.uy;
+            inverseux = result.inverseux;
+            inverseuy = result.inverseuy;
+
+            if (ux === undefined || uy === undefined || inverseux === undefined || inverseuy === undefined) {
+                throw new Error("Missing variables. Make sure to define ux, uy, inverseux, and inverseuy.");
+            }
+
+            // Apply hidden transformation from the level
+            const [transformedSpeedX, transformedSpeedY] = levels[currentLevel].hiddenTransform(inverseux, inverseuy);
+            speedX = transformedSpeedX;
+            speedY = transformedSpeedY;
+        } else {
+            throw new Error("Invalid level.");
+        }
+
+        // Calculate trajectory
+        calculateTrajectory();
+
+        // Check if target was hit
+
+        const g = 9.8;
+        const timeToTargetX = levels[currentLevel].distance / speedX;
+        const heightAtTargetX = speedY * timeToTargetX - 0.5 * g * timeToTargetX * timeToTargetX;
+        const targetHeight = levels[currentLevel].targetHeight;
+        const timeOfFlight = (2 * speedY) / g;
+        const range = speedX * timeOfFlight;
+        processedDistance = range.toFixed(2);
+
+        
+        // Check if hit was within tolerance
+        if (Math.abs(range - levels[currentLevel].distance) <= levels[currentLevel].tolerance &&
+            Math.abs(heightAtTargetX - targetHeight) <= levels[currentLevel].tolerance) {
+
+            missedPoint = null;
+            updateLevelInfo();
+            drawCanvas();
+
+            setTimeout(() => {
+                alert("Success! Target hit!");
+                currentLevel = (currentLevel + 1) % levels.length;
+                processedDistance = null;
+                projectilePath = [];
+                updateLevelInfo();
+                drawCanvas();
+            }, 100);
+
+        } else {
+            // Record miss point
+            if (speedY === 0) {
+                missedPoint = { x: 0, y: 0 };
+            } else {
+                const timeToTargetX = levels[currentLevel].distance / speedX;
+                const heightAtTargetX = speedY * timeToTargetX - 0.5 * g * timeToTargetX * timeToTargetX;
+                missedPoint = { x: levels[currentLevel].distance, y: heightAtTargetX };
+            }
+
+            updateLevelInfo();
+            drawCanvas();
+
+            setTimeout(() => {
+                alert("Missed! Try again.");
+            }, 100);
+        }
+    } catch (error) {
+        alert("Error in your code: " + error.message);
+        return;
+    }
+}
+        // Calculate complete trajectory for animation
+        function calculateTrajectory() {
+            if (11 < currentLevel < 14) {
+                projectilePath = [];
+                const g = 9.8;
+                const dt = 0.1; // time step
+                const maxTime = (2 * speedY) / g; // time of flight
+
+                // Define obstacle: x position and height range
+                const obstacleX = levels[currentLevel].obstaclex; // X-coordinate of the vertical obstacle
+                const obstacleYMin = levels[currentLevel].obstacleymin; // Min height
+                const obstacleYMax = levels[currentLevel].obstacleymax; // Max height
+
+                for (let t = 0; t <= maxTime; t += dt) {
+                    const x = speedX * t;
+                    const y = speedY * t - 0.5 * g * t * t;
+
+                    if (y >= 0) {
+                        projectilePath.push({ x, y });
+
+                        // Collision check with vertical obstacle
+                        if (x >= obstacleX && x <= obstacleX + 1 && y >= obstacleYMin && y <= obstacleYMax) {
+                            alert("Collision detected with the obstacle!");
+                            return;
+                        }
+                    }
+                }
+
+                alert("No collision detected");
+            }
+            else {
+                projectilePath = [];
+                const g = 9.8;
+                const dt = 0.1; // time step
+                const maxTime = (2 * speedY) / g; // time of flight
+                
+                for (let t = 0; t <= maxTime; t += dt) {
+                    const x = speedX * t;
+                    const y = speedY * t - 0.5 * g * t * t;
+                    
+                    if (y >= 0) {
+                        projectilePath.push({ x, y });
+                    }
+                }
+            }
+        }
+
+        // Event listeners
+        submitButton.addEventListener('click', handleSubmit);
+
+        // Initialize the game
+        initGame();
+    </script>
+</body>
+</html>
